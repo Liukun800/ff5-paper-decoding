@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>三维结构法拆解 · Fama-French 五因子模型在中国股票市场的实证检验</title>
+<style>
+  :root{
+    --paper:#FBF9F4; --paper2:#F4F0E6; --ink:#1B2A4A; --ink2:#3A4A68;
+    --gold:#B8860B; --gold2:#D8B45A; --line:#DCD5C4;
+    --red:#C0392B; --green:#2E7D5B; --mute:#7A8496;
+    --hei:"Microsoft YaHei","SimHei","PingFang SC",sans-serif;
+    --song:"SimSun","Songti SC","Noto Serif SC",serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{background:#E8E4DA; font-family:var(--hei); color:var(--ink); overflow:hidden}
+  #stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center}
+  #deck{width:1280px; height:720px; position:relative; transform-origin:center center;
+        background:var(--paper); box-shadow:0 12px 40px rgba(27,42,74,.22); overflow:hidden}
+  .slide{position:absolute; inset:0; padding:52px 64px 48px; display:none;
+         flex-direction:column; background:var(--paper)}
+  .slide.active{display:flex}
+  .eyebrow{font-size:13px; letter-spacing:.22em; color:var(--gold); font-weight:700; margin-bottom:10px}
+  h2{font-size:33px; line-height:1.24; letter-spacing:-.01em; margin-bottom:18px}
+  h2 .thin{font-weight:400; color:var(--ink2)}
+  .foot{position:absolute; left:64px; right:64px; bottom:16px; display:flex;
+        justify-content:space-between; font-size:12px; color:var(--mute);
+        border-top:1px solid var(--line); padding-top:8px}
+  .body{flex:1; min-height:0}
+  p{font-size:16.5px; line-height:1.75; color:var(--ink2)}
+  strong{color:var(--ink)}
+  .gold{color:var(--gold)} .red{color:var(--red)} .green{color:var(--green)}
+  /* 封面 */
+  .cover{justify-content:center}
+  .cover h1{font-size:52px; line-height:1.18; letter-spacing:-.02em; margin-bottom:22px}
+  .cover .rule{width:88px; height:5px; background:var(--gold); margin-bottom:24px}
+  .cover .sub{font-size:20px; color:var(--ink2); line-height:1.6; margin-bottom:30px}
+  .cover .meta{font-family:var(--song); font-size:15px; color:var(--mute); line-height:1.9;
+               border-left:3px solid var(--gold2); padding-left:14px}
+  /* 通用块 */
+  .cards{display:grid; gap:16px}
+  .c3{grid-template-columns:repeat(3,1fr)} .c2{grid-template-columns:1fr 1fr}
+  .card{background:var(--paper2); border:1px solid var(--line); border-radius:4px;
+        padding:18px 20px; border-top:4px solid var(--gold)}
+  .card h3{font-size:19px; margin-bottom:9px}
+  .card p{font-size:14.5px; line-height:1.68}
+  .card .tag{display:inline-block; font-size:11.5px; letter-spacing:.1em; color:#fff;
+             background:var(--ink); padding:2px 8px; border-radius:2px; margin-bottom:10px}
+  ul{list-style:none} li{font-size:16px; line-height:1.72; padding-left:20px; position:relative;
+                          margin-bottom:9px; color:var(--ink2)}
+  li::before{content:"▸"; position:absolute; left:0; color:var(--gold); font-size:14px}
+  li.sq::before{content:"▪"}
+  .cite{font-family:var(--song); font-size:15.5px; line-height:1.95; color:#243352;
+        background:#F7F3E8; border-left:4px solid var(--gold); padding:14px 18px;
+        border-radius:0 3px 3px 0}
+  .cite .src{display:block; font-family:var(--hei); font-size:12px; color:var(--mute);
+              margin-top:8px; letter-spacing:.04em}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  table.tight td{font-size:12.5px; padding:6px 9px; line-height:1.45}
+  table.tight th{font-size:12px; padding:6px 9px}
+  th{background:var(--ink); color:#fff; text-align:left; padding:8px 10px; font-weight:600;
+     font-size:13px; letter-spacing:.03em}
+  td{padding:7px 10px; border-bottom:1px solid var(--line); line-height:1.55; vertical-align:top;
+     color:var(--ink2)}
+  tr:nth-child(even) td{background:#F7F4EC}
+  .num{font-variant-numeric:tabular-nums; font-weight:700; color:var(--ink)}
+  /* 时间轴 */
+  .tl{position:relative; margin-top:6px}
+  .tl:before{content:""; position:absolute; left:0; right:0; top:34px; height:2px; background:var(--line)}
+  .tl-row{display:flex; gap:0; position:relative}
+  .node{flex:1; text-align:center; position:relative; padding:0 4px}
+  .node .dot{width:15px; height:15px; border-radius:50%; background:var(--gold);
+             margin:27px auto 12px; border:3px solid var(--paper); box-shadow:0 0 0 2px var(--gold2)}
+  .node .yr{font-size:13px; font-weight:700; color:var(--gold)}
+  .node .nm{font-size:13px; line-height:1.45; color:var(--ink2); margin-top:4px}
+  .node.hi .dot{background:var(--red); box-shadow:0 0 0 2px #E8A79E}
+  .node.hi .nm{color:var(--red); font-weight:700}
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:22px}
+  .kpi{display:flex; gap:18px; margin-top:4px}
+  .kbox{flex:1; background:var(--paper2); border-top:4px solid var(--gold); padding:12px 14px;
+        border-radius:3px}
+  .kbox .v{font-size:26px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums}
+  .kbox .l{font-size:12px; color:var(--mute); margin-top:3px; line-height:1.4}
+  pre.code{background:#20293D; color:#E6E9F0; font-family:Consolas,"Courier New",monospace;
+           font-size:12.5px; line-height:1.62; padding:14px 16px; border-radius:4px;
+           white-space:pre-wrap; word-break:break-word}
+  .note{font-size:13px; color:var(--mute); line-height:1.6; margin-top:10px}
+  .banner{background:var(--ink); color:#fff; padding:12px 18px; border-radius:3px;
+          font-size:16px; line-height:1.6}
+  .banner b{color:var(--gold2)}
+  .pill{display:inline-block; font-size:12.5px; padding:3px 10px; border-radius:12px;
+        background:#EFE8D6; color:#7A5F12; border:1px solid var(--gold2); margin-right:7px}
+  @media print{
+    body{background:#fff; overflow:visible}
+    #stage{position:static; display:block}
+    #deck{transform:none !important; box-shadow:none; width:1280px; height:auto}
+    .slide{display:flex !important; position:static; page-break-after:always;
+           height:720px; overflow:hidden}
+    @page{size:1280px 720px; margin:0}
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+
+<!-- 1 封面 -->
+<section class="slide cover">
+  <div class="eyebrow">文献三维结构法 · 实战拆解</div>
+  <div class="rule"></div>
+  <h1>一篇 16 页的中文顶刊，<br>能挖出几个<span class="gold">可发的 ID</span>？</h1>
+  <div class="sub">读文献的产出不是一个「理解」，而是一个「选题」。<br>
+     本文演示：把「读」换成「<strong>逆向拆解</strong>」。</div>
+  <div class="meta">
+    拆解对象：李志冰、杨光艺、冯永昌、景亮<br>
+    《Fama-French 五因子模型在中国股票市场的实证检验》<br>
+    《金融研究》2017 年第 6 期（总第 444 期），pp.191–206｜JEL: G11, G12, G15
+  </div>
+  <div class="foot"><span>三维结构法 · Trace the line / Extract the narrative / Run the code</span><span>1 / 20</span></div>
+</section>
+
+<!-- 2 证据边界 -->
+<section class="slide">
+  <div class="eyebrow">先立规矩 · 证据边界</div>
+  <h2>动手之前，先把<span class="thin">「我知道什么」和「我以为我知道什么」分开</span></h2>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card">
+        <span class="tag">可核验</span>
+        <h3>原文全文 16 页</h3>
+        <p>正文页 191–206，含表 1–8 与全部脚注。<br>
+           本拆解中每一个数字都标注页码或表号，可回原文逐条对。</p>
+      </div>
+      <div class="card">
+        <span class="tag">二手转述</span>
+        <h3>后续文献结论</h3>
+        <p>Liu-Stambaugh-Yuan(2019)、Li &amp; Rao(2022)、Hanauer et al.(2021) 等。
+           这些是<strong>他刊结论</strong>，用于定位裂缝，不当作原文的结论引用。</p>
+      </div>
+      <div class="card">
+        <span class="tag">待核对</span>
+        <h3>方法实现细节</h3>
+        <p>原文未公开代码。<code>营业利润/股东权益合计</code> 等口径替换后的
+           等价性未在文中论证——这正是后面 Gap 清单的入口。</p>
+      </div>
+    </div>
+    <div class="banner" style="margin-top:22px">
+      铁律：<b>绝不把二手转述写成原文结论。</b>拿到全文要回头改，被推翻的判断要公开承认。
+    </div>
+    <p class="note">另外一条铁律：<strong>不许把「作者已经做过的」当成「作者的空白」</strong>。
+       本文已做过邹至庄检验，所以正确的姿势不是「应该改用 Chow」，而是「Chow → 多重未知断点」。</p>
+  </div>
+  <div class="foot"><span>证据等级：全文（非摘要页），16 页，含 8 张表</span><span>2 / 20</span></div>
+</section>
+
+<!-- 3 三维结构法总览 -->
+<section class="slide">
+  <div class="eyebrow">方法总览</div>
+  <h2>三维结构法：把「读懂」变成<span class="thin">三步可交付的动作</span></h2>
+  <div class="body">
+    <div class="cards c3" style="height:100%; align-items:stretch">
+      <div class="card">
+        <span class="tag">第一步</span>
+        <h3>Trace the line<br><span style="font-size:14px;color:var(--mute)">摸清学术家谱</span></h3>
+        <p>别看孤立的单点，拉出这个细分赛道的进化链条：原作者遇到什么瓶颈、
+           后来的人用什么外挂组件补窟窿。<strong>关键动作是找裂缝，不是梳理。</strong></p>
+        <p style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line)">
+          产出 → 一句<strong>选题公式</strong></p>
+      </div>
+      <div class="card">
+        <span class="tag">第二步</span>
+        <h3>Extract narrative<br><span style="font-size:14px;color:var(--mute)">提取高阶语料</span></h3>
+        <p>只摘五类句子：让步句、机制包装、归因句、方法论建议、自我设限。
+           <strong>不摘</strong>专业名词、公式本身、整段翻译。</p>
+        <p style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line)">
+          产出 → 带页码的<strong>专属语料库</strong></p>
+      </div>
+      <div class="card">
+        <span class="tag">第三步</span>
+        <h3>Run the code<br><span style="font-size:14px;color:var(--mute)">跑通灵魂代码</span></h3>
+        <p>克隆/重建全链路，<strong>逐行写注释</strong>。公式与代码之间的实现 Gap，
+           往往就是最高分的那个创新点。</p>
+        <p style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line)">
+          产出 → 可运行骨架 + <strong>Gap 清单</strong></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>三步之间是耦合的：家谱决定你摘什么语料，语料点出你要跑哪段代码</span><span>3 / 20</span></div>
+</section>
+
+<!-- 4 Trace 分节 -->
+<section class="slide cover">
+  <div class="eyebrow">第一部分</div>
+  <div class="rule"></div>
+  <h1 style="font-size:44px">Trace the line<br><span class="gold">摸清学术家谱</span></h1>
+  <div class="sub" style="max-width:900px">
+    拿到一篇新文章，先别看它的公式。<br>
+    把这个细分赛道近三年的<strong>时间轴</strong>拉出来，看进化链条，
+    看原作者遇到什么瓶颈、后来的人拿什么组件去补。
+  </div>
+  <div class="banner" style="max-width:900px">
+    看懂了大家的进化套路，<b>你的选题就成功了一半。</b>
+  </div>
+  <div class="foot"><span>关键词：进化链条 · 瓶颈 · 补丁组件 · 裂缝</span><span>4 / 20</span></div>
+</section>
+
+<!-- 5 母模型主线 -->
+<section class="slide">
+  <div class="eyebrow">家谱 · 第一条线</div>
+  <h2>母模型主线：<span class="thin">Fama-French 体系内部的自我迭代</span></h2>
+  <div class="body">
+    <div class="tl">
+      <div class="tl-row">
+        <div class="node"><div class="yr">1964</div><div class="dot"></div><div class="nm">CAPM<br>单因子</div></div>
+        <div class="node"><div class="yr">1993</div><div class="dot"></div><div class="nm">FF3<br>+SMB +HML</div></div>
+        <div class="node"><div class="yr">1997</div><div class="dot"></div><div class="nm">Carhart 4<br>+MOM</div></div>
+        <div class="node"><div class="yr">2013</div><div class="dot"></div><div class="nm">Novy-Marx<br>Aharoni et al.</div></div>
+        <div class="node hi"><div class="yr">2015a</div><div class="dot"></div><div class="nm">FF5<br>+RMW +CMA</div></div>
+        <div class="node"><div class="yr">2015b</div><div class="dot"></div><div class="nm">FF5<br>国际检验</div></div>
+        <div class="node"><div class="yr">2016</div><div class="dot"></div><div class="nm">FF6<br>+MOM</div></div>
+      </div>
+    </div>
+    <div class="cards c2" style="margin-top:30px">
+      <div class="card">
+        <h3>每次升级，都在给上一代判刑</h3>
+        <p>FF5 的理论基础是<strong>红利贴现模型</strong>（原文 p.192）：
+           把 RMW 与 CMA 加进来，是为了更好地描述横截面期望收益率。
+           代价是——体系内部出现<span class="red">支柱被判冗余</span>。</p>
+      </div>
+      <div class="card">
+        <h3>裂缝信号：谁被宣布冗余</h3>
+        <p>美国市场：HML 被判冗余，FF 改用 HMLm（残差版）。<br>
+           中国市场：<strong>CMA 被判冗余</strong>（原文表 3，p.196）。<br>
+           <span class="red">同一个体系，冗余的支柱却不是同一根。</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>溯源：原文文献回顾 p.192–193；表 1 因子构建方法 p.195</span><span>5 / 20</span></div>
+</section>
+
+<!-- 6 本土支线 -->
+<section class="slide">
+  <div class="eyebrow">家谱 · 第二条线</div>
+  <h2>本土支线：<span class="thin">同一个模型搬进 A 股之后的十年争论</span></h2>
+  <div class="body">
+    <div class="tl">
+      <div class="tl-row">
+        <div class="node"><div class="yr">2004</div><div class="dot"></div><div class="nm">吴世农等<br>B/M 显著</div></div>
+        <div class="node"><div class="yr">2014</div><div class="dot"></div><div class="nm">田利辉等<br>B/M 不显著</div></div>
+        <div class="node"><div class="yr">2016</div><div class="dot"></div><div class="nm">高春亭等<br>FF5 更优</div></div>
+        <div class="node"><div class="yr">2016</div><div class="dot"></div><div class="nm">赵胜民等<br>FF5 无益</div></div>
+        <div class="node hi"><div class="yr">2017</div><div class="dot"></div><div class="nm">李志冰等<br>本篇</div></div>
+        <div class="node hi"><div class="yr">2019</div><div class="dot"></div><div class="nm">LSY<br>CH-3 / CH-4</div></div>
+        <div class="node"><div class="yr">2022</div><div class="dot"></div><div class="nm">Li &amp; Rao<br>再修正</div></div>
+      </div>
+    </div>
+    <div class="split" style="margin-top:30px">
+      <div>
+        <h3 style="font-size:17px;margin-bottom:10px">2016 年同题撞车</h3>
+        <ul>
+          <li class="sq">高春亭、周孝华(2016)：FF5 优于 FF3</li>
+          <li class="sq">赵胜民等(2016)：盈利与投资因子无益</li>
+          <li class="sq">Guo et al.(2017)：投资风格因子冗余</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:17px;margin-bottom:10px">本文切入的刀口</h3>
+        <ul>
+          <li class="sq">上面几篇<strong>只在全样本下比较 FF5 与 FF3</strong></li>
+          <li class="sq">没人检验新因子<strong>经 FF3 风险调整后</strong>是否还有溢价</li>
+          <li class="sq">没人把<strong>制度变革</strong>作为分期依据</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>溯源：原文文献回顾 p.193；制度背景 p.192</span><span>6 / 20</span></div>
+</section>
+
+<!-- 7 裂缝一 -->
+<section class="slide">
+  <div class="eyebrow">裂缝 · 一</div>
+  <h2>作者的 <span class="red">「冗余」</span> 结论，被自己的分期检验推翻了</h2>
+  <div class="body">
+    <div class="split">
+      <div>
+        <h3 style="font-size:16px;color:var(--mute);margin-bottom:8px">全样本（表 3，p.196）</h3>
+        <table>
+          <tr><th>冗余检验</th><th>截距 alpha</th><th>t</th><th>结论</th></tr>
+          <tr><td>RMW</td><td class="num">0.46%</td><td>2.62</td><td class="red">显著</td></tr>
+          <tr><td>CMA</td><td class="num">0.05%</td><td>0.42</td><td class="green">冗余</td></tr>
+        </table>
+        <h3 style="font-size:16px;color:var(--mute);margin:16px 0 8px">分时期（表 7，p.202）</h3>
+        <table>
+          <tr><th>因子</th><th>股改前</th><th>股改后</th></tr>
+          <tr><td>RMW</td><td>0.34 (1.25)</td><td class="red">0.44***(2.75)</td></tr>
+          <tr><td>CMA</td><td>-0.17 (-0.99)</td><td class="red">0.23*(1.91)</td></tr>
+          <tr><td>MOM</td><td>-0.04 (-0.12)</td><td class="red">-0.76**(-2.04)</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="cite">
+          「我们猜测这一结果可能受到中国股市早期样本的影响较大，早期股市『同涨同跌』
+          现象严重，市场风险占据主导地位，CAPM 具有很强的解释能力，CMA 因子在早期
+          样本内『冗余』很容易理解。」
+          <span class="src">原文 p.197</span>
+        </div>
+        <div class="cite" style="margin-top:14px">
+          「根据表 7 分时期冗余检验结果我们猜测这可能是由于两个因子在股改前『冗余』，
+          而股改后具有显著的风险溢价，全样本下的结果受到股改前影响较大。」
+          <span class="src">原文 p.202</span>
+        </div>
+        <div class="banner" style="margin-top:16px">
+          裂缝的本质：<b>「冗余」不是因子的属性，是样本期的属性。</b>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>表格数据全部来自原文表 3（p.196）与表 7（p.202）</span><span>7 / 20</span></div>
+</section>
+
+<!-- 8 裂缝二 + 三 -->
+<section class="slide">
+  <div class="eyebrow">裂缝 · 二 / 三</div>
+  <h2>外部有一条更狠的裂缝：<span class="thin">「照搬 FF 流程」本身就是错的</span></h2>
+  <div class="body">
+    <div class="cards c2">
+      <div class="card" style="border-top-color:var(--red)">
+        <span class="tag" style="background:var(--red)">裂缝二 · 同市场相反结论</span>
+        <h3>同一年、同一市场、同一模型，结论相反</h3>
+        <p>分歧不在模型，在<strong>样本期 / 分位点 / 口径</strong>。
+           本文给出的解法是「按制度变革分期」，但分期依据只有一个断点。</p>
+        <p class="note" style="margin-top:10px">→ 这只是把问题缩小了，没有解决。</p>
+      </div>
+      <div class="card" style="border-top-color:var(--red)">
+        <span class="tag" style="background:var(--red)">裂缝三 · 范式挑战</span>
+        <h3>LSY(2019, JFE) 直接否掉「照搬」的合法性</h3>
+        <p>中国 IPO 严格管制 → 借壳上市 → 小市值股票的价格里含<strong>壳期权价值</strong>。
+           实证：<span class="gold">83% 的借壳标的来自最小 30% 的股票</span>，
+           这部分股票的市值约 30% 反映壳价值。</p>
+        <p>另一个打击：中国市场的价值效应<strong>由 E/P 承载，B/M 被完全吸收</strong>。</p>
+      </div>
+    </div>
+    <div class="banner" style="margin-top:20px">
+      本文的口径是：<b>全体 A 股分位点 + 流通市值 + B/M</b>（原文 p.194 及脚注）。
+      而 LSY 的三条修正正好打在这三处：<b>剔除最小 30%、改用总市值、改用 E/P</b>。
+    </div>
+    <p class="note">这就是「体系外裂缝」——不是让你去挑作者的错，是让你发现：
+       <strong>他的结论建立在一套已被后续文献质疑的口径上，而这套口径下没人重跑过分期检验。</strong></p>
+  </div>
+  <div class="foot"><span>LSY = Liu, Stambaugh &amp; Yuan (2019), JFE 134(1), 48–69</span><span>8 / 20</span></div>
+</section>
+
+<!-- 9 选题公式 -->
+<section class="slide">
+  <div class="eyebrow">第一步的交付物</div>
+  <h2>选题公式：<span class="thin">把裂缝翻译成一句可以被检验的话</span></h2>
+  <div class="body">
+    <div class="banner" style="font-size:19px; line-height:1.8; padding:20px 24px">
+      模型 <b>M</b> 在 <b>A 市场</b>得 <b>X</b>、在 <b>B 市场</b>得 <b>Y</b>，<b>X ≠ Y</b><br>
+      → 用<b>制度 / 口径差异 Z</b> 解释分歧
+    </div>
+    <p style="margin-top:22px">代入本文，得到三句可直接立项的选题：</p>
+    <div class="cards c3" style="margin-top:14px">
+      <div class="card">
+        <h3>选题 ①</h3>
+        <p><strong>剔除壳污染后，中国市场的「CMA 冗余」还成立吗？</strong></p>
+        <p class="note">X = 全样本 CMA 冗余（本文 p.196）；<br>
+           Y = 剔除最小 30% 后是否反转；<br>
+           Z = 壳期权价值污染小盘股收益（LSY）。</p>
+      </div>
+      <div class="card">
+        <h3>选题 ②</h3>
+        <p><strong>价值因子换成 E/P，「股改后市场更有效」的结论是否稳健？</strong></p>
+        <p class="note">本文的市场效率结论（表 6，p.201）依赖 B/M 建 HML。<br>
+           换成 E/P 后，A|a|/A|r| 是否仍下降？</p>
+      </div>
+      <div class="card">
+        <h3>选题 ③</h3>
+        <p><strong>单一 Chow 升级为多重未知断点，断点到底有几个？</strong></p>
+        <p class="note">本文只检验 2007-06（p.200 脚注）。<br>
+           2005 股改、2017 注册制是否构成第二、第三个断点？</p>
+      </div>
+    </div>
+    <p class="note" style="margin-top:14px">注意：①②③ 的前提都是
+      <strong>「作者已经做过全样本，但没在修正口径下重跑」</strong>——不是「作者忘了做」。</p>
+  </div>
+  <div class="foot"><span>选题公式的检验标准：一句话说清 X、Y、Z 三个变量</span><span>9 / 20</span></div>
+</section>
+
+<!-- 10 Extract 分节 -->
+<section class="slide cover">
+  <div class="eyebrow">第二部分</div>
+  <div class="rule"></div>
+  <h1 style="font-size:44px">Extract the narrative<br><span class="gold">提取高阶语料</span></h1>
+  <div class="sub" style="max-width:920px">
+    看到论文里那些高级的转折句、精妙的因果推导、把魔改包装成经典框架的描述，
+    <strong>直接标黄摘录</strong>下来。<br>
+    别等到自己写 paper 的时候，满脑子都是初中生水平的简单句。
+  </div>
+  <div class="banner" style="max-width:920px">
+    只摘五类，不摘三类。<b>摘的是「句子的功能」，不是「好看的名词」。</b>
+  </div>
+  <div class="foot"><span>每条语料 = 原文 + 页码 + 可迁移模板 + 自己的替换版</span><span>10 / 20</span></div>
+</section>
+
+<!-- 11 五类语料表 -->
+<section class="slide">
+  <div class="eyebrow">语料库 · 五类</div>
+  <h2>只摘这五类句子</h2>
+  <div class="body">
+    <table>
+      <tr><th style="width:14%">类型</th><th style="width:30%">特征</th><th style="width:30%">用途</th><th>本文实例出处</th></tr>
+      <tr>
+        <td><strong>让步句</strong></td>
+        <td>「鉴于……差异，本文改用……」</td>
+        <td>把「魔改」合法化，是你后面做修正的挡箭牌</td>
+        <td>p.194 脚注（OP 口径替换）；p.203 脚注（沿用 MOM 命名）</td>
+      </tr>
+      <tr>
+        <td><strong>机制包装</strong></td>
+        <td>「[制度缺陷] → 投资者不关心[基本面] → 因子不被定价」</td>
+        <td>把统计结果翻译成经济学机制，审稿人最认这一段</td>
+        <td>p.202（隧道行为 → 股改前 RMW/CMA 不被定价）</td>
+      </tr>
+      <tr>
+        <td><strong>归因句</strong></td>
+        <td>「全样本结论受[某子样本]影响较大」</td>
+        <td>解释「分期 vs 全样本」的冲突</td>
+        <td>p.196（均值检验不可靠）；p.202（全样本受股改前影响）</td>
+      </tr>
+      <tr>
+        <td><strong>方法论建议</strong></td>
+        <td>「由于[本土特殊性]，研究[外来模型]时应采用[某子样本]」</td>
+        <td>把一次实证上升为操作建议，最容易被后续文献引用</td>
+        <td>p.204（研究外来模型应以股改后样本为主）</td>
+      </tr>
+      <tr>
+        <td><strong>自我设限</strong></td>
+        <td>「本文模型在[条件]下仍无法通过[检验]」</td>
+        <td><span class="red">作者交出的接力棒 = 你的选题</span></td>
+        <td>p.205 结论（FF5/FF6 在某些分组下仍无法通过 GRS）</td>
+      </tr>
+    </table>
+    <p class="note" style="margin-top:16px">
+      <strong>不摘</strong>：① 专业名词（那是检索词不是语料）② 公式本身 ③ 整段翻译。
+      这三样摘了也不会变成你的语言能力。
+    </p>
+  </div>
+  <div class="foot"><span>语料库的检验标准：半年后你能不看原文复述出这个句型</span><span>11 / 20</span></div>
+</section>
+
+<!-- 12 语料示例：机制包装 -->
+<section class="slide">
+  <div class="eyebrow">语料示例 · 机制包装</div>
+  <h2>把「统计不显著」写成<span class="thin">「制度导致投资者不关心基本面」</span></h2>
+  <div class="body">
+    <div class="cite">
+      「股改前多数国有上市公司投资效率低下，存在滥用资金、过度投资的现象（黄晶等，2011）；
+      非流通股东『一股独大』，中小股东对于公司治理没有话语权，非流通股东为了自身利益考虑
+      常出现利用关联交易大量侵占、转移上市公司优质资产，侵占小股东利益的『隧道行为』
+      ……以上原因很可能导致股改前投资者投资时不关心上市公司的投资情况和经营绩效，
+      <strong>所以这两个因子不具有显著的风险溢价</strong>。」
+      <span class="src">原文 p.202（对应表 7 股改前 RMW 0.34/t=1.25、CMA −0.17/t=−0.99）</span>
+    </div>
+    <div class="split" style="margin-top:20px">
+      <div class="card">
+        <h3>可迁移模板</h3>
+        <p class="cite" style="font-size:14.5px;padding:11px 14px">
+          「[制度安排 A] 使得 [利益相关方] 缺乏 [某激励/约束]，导致 [价格形成的某个环节] 失效，
+          因此 [因子 X] 在 [样本期] 内不具有显著的风险溢价。」
+        </p>
+      </div>
+      <div class="card">
+        <h3>我的替换版（可直接套到别的因子）</h3>
+        <p class="cite" style="font-size:14.5px;padding:11px 14px">
+          「[注册制前 IPO 的高门槛] 使得 [小市值公司] 的估值中内含 [壳期权价值]，
+          导致 [价格形成的定价环节] 与经营基本面脱钩，
+          因此 [规模因子 SMB] 在 [壳污染未剔除的样本] 内的高收益主要是 [估值博弈] 而非 [风险补偿]。」
+        </p>
+      </div>
+    </div>
+    <p class="note">注意最后那个「所以」——整段话的力量全部压在这三个字上。
+      <strong>摘语料要连「推论的方向」一起摘，不能只摘前半段的制度描述。</strong></p>
+  </div>
+  <div class="foot"><span>按引用标注：黄晶等(2011)；陈晓和王琨(2005)；廖理和沈红波(2008)</span><span>12 / 20</span></div>
+</section>
+
+<!-- 13 语料示例：方法论建议 + 自我设限 -->
+<section class="slide">
+  <div class="eyebrow">语料示例 · 方法论建议 &amp; 自我设限</div>
+  <h2>一句升格为「操作建议」，一句把接力棒<span class="gold">直接递给你</span></h2>
+  <div class="body">
+    <div class="cite">
+      「本文为中国市场的相关研究提供了一个新的思路，即由于中国市场早期具有『股权分置』的特殊性，
+      <strong>研究国外成熟市场的模型在中国市场的表现时应主要以股改后样本来进行研究</strong>。」
+      <span class="src">原文 p.204（结论段，被引用的核心竞争力就在这里）</span>
+    </div>
+    <div class="cite" style="margin-top:16px; border-left-color:var(--red); background:#FCF1EF">
+      「值得注意的是，不管是五因子模型还是加入动量因子的六因子模型，
+      在某些股票组合分组方式下<strong>仍然无法通过 GRS 检验</strong>，尤其是对于股改后样本这一问题尤为突出，
+      说明这六个因子仍然不能完全解释中国股市股票组合平均收益率的变动。」
+      <span class="src">原文 p.205（结论段的自我设限 —— 这就是作者交出的接力棒）</span>
+    </div>
+    <div class="cards c2" style="margin-top:18px">
+      <div class="card">
+        <h3>从「方法论建议」能拿到什么</h3>
+        <p>这是一句可以被<strong>反驳</strong>的话：如果股改不是唯一的制度断点，
+           「以股改后样本为主」就会把 2017 注册制之后的数据混进来。
+           → 直接构成选题 ③ 的立论依据。</p>
+      </div>
+      <div class="card" style="border-top-color:var(--red)">
+        <h3>从「自我设限」能拿到什么</h3>
+        <p>作者只说了「某些分组下通不过 GRS」，<strong>没说哪几个、为什么</strong>。
+           这句话就是一张空白的任务单：
+           定位失败切片 → 反推缺失因子的经济学属性 → 造新因子。</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>自我设限句是最好的选题库：作者已经帮你划出了「已知边界」</span><span>13 / 20</span></div>
+</section>
+
+<!-- 14 Run 分节 -->
+<section class="slide cover">
+  <div class="eyebrow">第三部分</div>
+  <div class="rule"></div>
+  <h1 style="font-size:44px">Run the code<br><span class="gold">跑通灵魂代码</span></h1>
+  <div class="sub" style="max-width:940px">
+    别光盯着论文里的数学公式看——那些复杂符号很多时候是作者为了过审包装出来的。<br>
+    <strong>公式和代码之间存在的那个实现 Gap，往往就是你发高分的最佳创新点。</strong>
+  </div>
+  <div class="banner" style="max-width:940px">
+    做法：重建全链路 → 逐行写注释 → 输出<b>「原文真实数字对照表」</b> → 输出 <b>Gap 清单</b>
+  </div>
+  <div class="foot"><span>附件：ff5_3d_repro.py（可运行，合成数据端到端跑通）</span><span>14 / 20</span></div>
+</section>
+
+<!-- 15 全链路 -->
+<section class="slide">
+  <div class="eyebrow">灵魂代码 · 链路</div>
+  <h2>把论文第三节到第五节的每一句话，翻译成一行代码</h2>
+  <div class="body">
+    <div class="split">
+      <div>
+        <table class="tight">
+          <tr><th style="width:30%">原文口径</th><th>代码实现</th></tr>
+          <tr><td>样本 254 个月</td><td><code>PeriodRange(1994-07, 2015-08)</code></td></tr>
+          <tr><td>流通市值加权</td><td><code>vw_return()</code>：Σ(ret·size)/Σ(size)</td></tr>
+          <tr><td>Size</td><td><code>assign2(df,"size")</code> 截面中位数</td></tr>
+          <tr><td>B/M</td><td><code>assign3(df,"bm",(L,N,H))</code> 30/70 分位</td></tr>
+          <tr><td>OP</td><td><code>assign3(df,"op",(W,N,R))</code></td></tr>
+          <tr><td>Inv</td><td><code>assign3(df,"inv",(A,N,C))</code></td></tr>
+          <tr><td>三种分组法</td><td>2×3 / 2×2 / 2×2×2×2，SMB 取三分量均值</td></tr>
+          <tr><td>MOM 累计收益</td><td><code>log1p(R).rolling(11).sum().shift(2)</code></td></tr>
+          <tr><td>GRS + 四指标</td><td><code>grs_stat()</code> / <code>evaluate()</code></td></tr>
+          <tr><td>邹至庄检验</td><td><code>panel_chow()</code>：25 个 panel 逐一检验</td></tr>
+        </table>
+      </div>
+      <div>
+        <pre class="code">def grs_stat(alphas, resid, factors):
+    """H0 = 所有截距项联合为 0，服从 F(N, T-N-L)"""
+    Tn, N = resid.shape
+    L = factors.shape[1]
+    a = alphas.reshape(-1, 1)
+    sigma = resid.T @ resid / Tn        # 残差协方差
+    fm = factors.values - factors.values.mean(axis=0)
+    omega = fm.T @ fm / Tn              # 因子协方差
+    mu = factors.values.mean(axis=0).reshape(-1, 1)
+    num = (a.T @ np.linalg.pinv(sigma) @ a)[0, 0]
+    den = 1 + (mu.T @ np.linalg.pinv(omega) @ mu)[0, 0]
+    g = ((Tn - N - L) / N) * num / den
+    return g, 1 - stats.f.cdf(g, N, Tn - N - L)</pre>
+        <p class="note">就是这几行决定了全文的表 5、表 8 —— 公式在论文里写了半页，
+           代码只有一个矩阵二次型。</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>复用：把 make_panel() 换成 Wind/CSMAR 面板即可全链路复跑</span><span>15 / 20</span></div>
+</section>
+
+<!-- 16 主结果 -->
+<section class="slide">
+  <div class="eyebrow">灵魂代码 · 跑起来</div>
+  <h2>合成数据端到端跑通：<span class="thin">链路自洽，且与原文方向一致</span></h2>
+  <div class="body">
+    <div class="split">
+      <div>
+        <h3 style="font-size:16px;margin-bottom:8px">合成数据 · Size-OP 25 组合四指标赛马</h3>
+        <table>
+          <tr><th>模型</th><th>GRS</th><th>p 值</th><th>A|a|/A|r|</th><th>Aa²/Ar²</th></tr>
+          <tr><td>CAPM</td><td>1.611</td><td>0.038</td><td>2.239</td><td>4.095</td></tr>
+          <tr><td>FF3</td><td>1.659</td><td>0.029</td><td>2.157</td><td>3.845</td></tr>
+          <tr><td>FF3+MOM</td><td>1.673</td><td>0.027</td><td>2.182</td><td>3.946</td></tr>
+          <tr style="background:#EFE8D6"><td><strong>FF5</strong></td><td class="num">1.102</td><td class="num">0.342</td><td class="num">1.180</td><td class="num">1.207</td></tr>
+        </table>
+        <p class="note">方向与原文表 5（p.199）一致：FF5 的四个指标全面低于 FF3 与 Carhart 四因子。</p>
+      </div>
+      <div>
+        <h3 style="font-size:16px;margin-bottom:8px">原文真实数字（用于校验方向性）</h3>
+        <table>
+          <tr><th>项目</th><th>原文数值</th><th>出处</th></tr>
+          <tr><td>Rm−Rf 均值</td><td>1.38%（t=1.92）</td><td>p.196 表2</td></tr>
+          <tr><td>SMB 均值</td><td>0.86%（t=2.70）</td><td>p.196 表2</td></tr>
+          <tr><td>RMW / CMA 均值</td><td>−0.07 / −0.02 均不显著</td><td>p.196 表2</td></tr>
+          <tr><td>RMW 对 FF3 alpha</td><td>0.82%（3.39）</td><td>p.196 表3</td></tr>
+          <tr><td>CMA 对四因子 alpha</td><td>0.05（0.42）→ 冗余</td><td>p.196 表3</td></tr>
+          <tr><td>FF3 四指标</td><td>2.23*** / 0.30 / 0.76 / 0.64</td><td>p.199 表5</td></tr>
+          <tr><td>FF5 四指标</td><td>1.55* / 0.20 / 0.51 / 0.27</td><td>p.199 表5</td></tr>
+        </table>
+        <div class="banner" style="margin-top:12px; font-size:14px">
+          <b>合成数据的数值与原文不可直接比较</b>，只验证链路是否跑通、口径是否自洽。
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>运行：ff5_3d_repro.py（seed=201706，可复现）</span><span>16 / 20</span></div>
+</section>
+
+<!-- 17 三组对照 -->
+<section class="slide">
+  <div class="eyebrow">灵魂代码 · 三组原文没做的对照</div>
+  <h2>这三组对照，就是三个<span class="gold">可立项的空位</span></h2>
+  <div class="body">
+    <table>
+      <tr><th style="width:16%">对照</th><th style="width:30%">做法</th><th style="width:28%">合成数据结果</th><th>为什么能立项</th></tr>
+      <tr>
+        <td><strong>A. 壳污染</strong></td>
+        <td>全样本 vs 剔除最小 30% 市值后重建全部因子</td>
+        <td>FF5 的 A|a|/A|r|：<br>1.180 → 0.891</td>
+        <td>原文用全体 A 股分位点（p.194 脚注1），
+            未做壳价值处理。剔除后解释力改善，说明结论含壳污染成分。</td>
+      </tr>
+      <tr>
+        <td><strong>B. 价值口径</strong></td>
+        <td>HML 由 B/M 建（原文） vs 由 E/P 建（LSY），
+            互测对方自有因子</td>
+        <td>HML_EP 均值 0.374%（t=2.44）<br>
+            FF5(HML_BM) 对 HML_EP 残留 alpha 0.267%（t=1.80）</td>
+        <td>B/M 建的价值因子只承载 0.092%（t=1.65），
+            且无法解释 E/P 价值因子的溢价 → 原文表 6 的市场效率结论可能不稳健。</td>
+      </tr>
+      <tr>
+        <td><strong>C. 断点</strong></td>
+        <td>已知单一 Chow(2007-06) vs 未知断点顺序扫描</td>
+        <td>25 个 panel 中 20 个在 1% 显著，Fisher p≈0；
+            扫描独立命中 2007-06</td>
+        <td>检验流程本身被验证；但未回答断点有几个。
+            2017 注册制是候选的第二断点。</td>
+      </tr>
+    </table>
+    <p class="note" style="margin-top:16px">
+      <strong>注意措辞纪律：</strong>合成数据的方向由植入机制决定，
+      以上数字<strong>不构成任何实证结论</strong>。它的作用是证明检验框架已搭好，
+      换真实面板即出结果。
+    </p>
+  </div>
+  <div class="foot"><span>对照 A/B 的数据口径来源：LSY(2019) JFE 134(1) 48–69</span><span>17 / 20</span></div>
+</section>
+
+<!-- 18 Gap 清单 1 -->
+<section class="slide">
+  <div class="eyebrow">灵魂代码 · 交付物</div>
+  <h2>Gap 清单（1–4）：<span class="thin">论文做法 → 留出的口子 → 改写方向</span></h2>
+  <div class="body">
+    <table>
+      <tr><th style="width:5%">#</th><th style="width:29%">论文的做法</th><th style="width:33%">留出的口子</th><th>可写成 ID 的改写方向</th></tr>
+      <tr>
+        <td class="num">1</td>
+        <td>市值口径用<strong>流通市值</strong>加权，Size 与 B/M 分母都是流通市值（p.194）</td>
+        <td>流通市值只覆盖部分股本；国有控股比例高时与总市值排序差异大，小盘股被系统性错分</td>
+        <td>做【流通市值 vs 总市值】双口径对照，量化 SMB 载荷错分对「股改后规模效应增强」的贡献度</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td>直接照搬 FF(2015a) 分组流程，采用<strong>全体 A 股分位点</strong>（p.194 脚注1）</td>
+        <td>未剔除最小 30% 市值。83% 的借壳标的来自最小 30%，壳期权价值进入小盘股收益</td>
+        <td>剔除最小 30%，或改用「高壳概率」筛选（Li &amp; Rao 2022），检验「CMA 冗余」是否翻转</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td>OP 用「营业利润 / <strong>股东权益合计</strong>」替代 FF 的「营业利润 / 账面权益」（p.194）</td>
+        <td>以中美会计准则差异为由直接替换，<strong>未论证两种口径的等价性</strong></td>
+        <td>构造两套 OP 做等价性检验（相关系数 + 排序一致性 + 因子收益对比），量化载荷漂移</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td>B/M 作为唯一价值变量，<strong>未与竞争性估值指标赛马</strong></td>
+        <td>LSY(2019) 的 Fama-MacBeth 赛马表明：中国市场 E/P 吸收 B/M 的全部价值效应</td>
+        <td>以 E/P 重建 HML，做 B/M vs E/P 赛马，检验「股改后市场趋于有效」的稳健性</td>
+      </tr>
+    </table>
+  </div>
+  <div class="foot"><span>Gap 1–4 全部落在「口径」上：口径是可证伪的，机制是可论证的</span><span>18 / 20</span></div>
+</section>
+
+<!-- 19 Gap 清单 2 -->
+<section class="slide">
+  <div class="eyebrow">灵魂代码 · 交付物</div>
+  <h2>Gap 清单（5–8）</h2>
+  <div class="body">
+    <table>
+      <tr><th style="width:5%">#</th><th style="width:29%">论文的做法</th><th style="width:33%">留出的口子</th><th>可写成 ID 的改写方向</th></tr>
+      <tr>
+        <td class="num">5</td>
+        <td>股改断点用<strong>单一已知点</strong> Chow 检验，2007-06（p.200 脚注）</td>
+        <td>只有一次结构化检验；无法识别 2017 注册制等后续断点，<strong>也无法给出断点位置的置信区间</strong></td>
+        <td>单一 Chow → 多重未知断点（Bai-Perron / 顺序检验），输出断点个数、位置与置信区间</td>
+      </tr>
+      <tr>
+        <td class="num">6</td>
+        <td>MOM 因子按 FF(2016) 方向构建（高历史收益减低历史收益），p.203 脚注</td>
+        <td>文章已发现中国市场是<strong>反转</strong>效应，却仍沿用动量方向的因子；截距显著为负，正说明因子方向与实际效应相反</td>
+        <td>显式构建反转方向因子，检验换手率 / 情绪（PMO）能否解释股改后反转效应</td>
+      </tr>
+      <tr>
+        <td class="num">7</td>
+        <td>评估以月度频率、GRS + 截距项四指标为主（p.199）</td>
+        <td>未考虑交易成本；未做<strong>多重检验校正</strong>（同一数据集上数百个因子的检验）</td>
+        <td>加入换手率与成本约束后的净 alpha 排序；用 Harvey-Liu(2020) 双重自举做多重检验校正</td>
+      </tr>
+      <tr style="background:#FCF1EF">
+        <td class="num">8</td>
+        <td>作者在结论中<strong>交棒</strong>：FF5 与 FF6 在某些分组下仍无法通过 GRS（p.205）</td>
+        <td>未回答「是哪些分组、为什么失败、缺哪个因子」</td>
+        <td>定位 GRS 失败的分组切片，反推缺失因子的经济学属性，构造候选新因子并做样本外验证</td>
+      </tr>
+    </table>
+    <div class="banner" style="margin-top:16px">
+      Gap 5–7 是<b>方法论升级</b>，Gap 8 是<b>作者亲手递给你的选题</b>。
+      前者靠读方法章节，后者靠读结论段最后两段。
+    </div>
+  </div>
+  <div class="foot"><span>Gap 8 提示：结论段的「仍无法解释」是全文信息密度最高的一句</span><span>19 / 20</span></div>
+</section>
+
+<!-- 20 收尾 SOP -->
+<section class="slide">
+  <div class="eyebrow">带走这一页</div>
+  <h2>下一篇论文，照着这四步做一遍</h2>
+  <div class="body">
+    <div class="cards c2" style="grid-template-columns:1fr 1fr; gap:18px">
+      <div class="card">
+        <h3>① 摸家谱（30 分钟）</h3>
+        <p>拉双行时间轴：母模型主线 + 本土支线。<br>
+           只找三样东西——<strong>体系内部的冗余判定、同市场的相反结论、体系外的范式挑战</strong>。</p>
+        <p class="note">产出：一句选题公式，含 X / Y / Z 三个变量。</p>
+      </div>
+      <div class="card">
+        <h3>② 摘语料（40 分钟）</h3>
+        <p>只摘五类：让步句、机制包装、归因句、方法论建议、<strong>自我设限</strong>。<br>
+           每条记：原文 + 页码 + 模板 + 我的替换版。</p>
+        <p class="note">产出：一张带页码的语料表，半年后可复述。</p>
+      </div>
+      <div class="card">
+        <h3>③ 重跑链路（半天）</h3>
+        <p>把方法章节逐句翻译成代码，先跑合成数据验证链路，再换真实面板。<br>
+           输出<strong>「原文真实数字对照表」</strong>校验方向性。</p>
+        <p class="note">产出：一份可运行的复现骨架。</p>
+      </div>
+      <div class="card" style="border-top-color:var(--red)">
+        <h3>④ 出 Gap 清单（30 分钟）</h3>
+        <p>逐条写三栏：论文做法 → 留出的口子 → 改写方向。<br>
+           优先选<strong>口径类</strong>（可证伪）与<strong>自我设限类</strong>（作者已交棒）。</p>
+        <p class="note">产出：一份可直接立项的创新点清单。</p>
+      </div>
+    </div>
+    <div class="banner" style="margin-top:20px">
+      读文献的产出不是一个「理解」，是一个「选题」。
+    </div>
+  </div>
+  <div class="foot"><span>附件：ff5_3d_repro.py｜ff5_run_log.txt｜本演示稿</span><span>20 / 20</span></div>
+</section>
+
+</div></div>
+
+<script>
+(function(){
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0;
+
+  function fit(){
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = 'scale(' + s + ')';
+  }
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(el, k){ el.classList.toggle('active', k === i); });
+    if (('#' + (i + 1)) !== location.hash) history.replaceState(null, '', '#' + (i + 1));
+  }
+  function fromHash(){
+    var m = /^#(\d+)$/.exec(location.hash);
+    if (m) show(parseInt(m[1], 10) - 1); else show(0);
+  }
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('hashchange', fromHash);
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'ArrowDown' || k === ' ' || k === 'PageDown'){ e.preventDefault(); show(i + 1); }
+    else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp'){ e.preventDefault(); show(i - 1); }
+    else if (k === 'Home'){ e.preventDefault(); show(0); }
+    else if (k === 'End'){ e.preventDefault(); show(slides.length - 1); }
+  });
+  document.addEventListener('click', function(e){
+    if (e.target.closest('a')) return;
+    show(i + (e.clientX < window.innerWidth * 0.28 ? -1 : 1));
+  });
+
+  fit(); fromHash();
+})();
+</script>
+</body>
+</html>
